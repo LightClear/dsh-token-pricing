@@ -1,0 +1,34 @@
+/* Token-cost readout in the composer dock band: 12/20 secondary text under
+   the flow, aligned to the shared message column axis like the stats line. */
+
+.root {
+  display: block;
+  text-align: center;
+  max-width: var(--dsh-chat-content-width);
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 0 calc(var(--dsh-composer-side-clearance) + 16px) 2px;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.root span {
+  margin: 0 5px;
+}
+
+.total {
+  color: var(--dsw-alias-label-primary);
+}
+
+.peak {
+  color: var(--dsw-alias-state-warn-primary);
+}
+
+.offpeak {
+  color: var(--dsw-alias-state-success-primary);
+}
