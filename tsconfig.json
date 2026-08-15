@@ -2,7 +2,8 @@
   "extends": "../../../tsconfig.base.client.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "lib/types"
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.client.tsbuildinfo"
   },
   "include": [
     "src"
@@ -18,7 +19,16 @@
       "path": "../../settings/settings"
     },
     {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../session/session-projection"
+    },
+    {
       "path": "../runtime"
+    },
+    {
+      "path": "../ui-layout"
     },
     {
       "path": "../ui-settings"

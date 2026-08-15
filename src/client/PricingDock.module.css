@@ -24,11 +24,3 @@
 .total {
   color: var(--dsw-alias-label-primary);
 }
-
-.peak {
-  color: var(--dsw-alias-state-warn-primary);
-}
-
-.offpeak {
-  color: var(--dsw-alias-state-success-primary);
-}

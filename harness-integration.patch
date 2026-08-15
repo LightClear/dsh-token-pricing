@@ -1,4 +1,4 @@
-﻿diff --git a/packages/bundle/web-app/cordis.patch.yml b/packages/bundle/web-app/cordis.patch.yml
+diff --git a/packages/bundle/web-app/cordis.patch.yml b/packages/bundle/web-app/cordis.patch.yml
 index b06e63b54f..932ee283af 100644
 --- a/packages/bundle/web-app/cordis.patch.yml
 +++ b/packages/bundle/web-app/cordis.patch.yml
@@ -163,3 +163,15 @@ index e599f76f1b..afeeae7c4a 100644
      { "path": "./packages/session-query/session-log-export" },
      { "path": "./packages/client/ui-theme" },
      { "path": "./packages/client/ui-settings" },
+diff --git a/tsconfig.host.json b/tsconfig.host.json
+index 459036247a..8b99ae0251 100644
+--- a/tsconfig.host.json
++++ b/tsconfig.host.json
+@@ -242,6 +242,7 @@
+     { "path": "./packages/bundle/base" },
+     { "path": "./packages/bundle/headless" },
+     { "path": "./packages/bundle/web-app" },
++    { "path": "./packages/client/token-pricing/tsconfig.host.json" },
+     { "path": "./packages/boot/app-boot" },
+     { "path": "./packages/boot/cmdline" },
+     { "path": "./packages/sdk/server" },

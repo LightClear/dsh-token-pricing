@@ -24,8 +24,7 @@ const ENTRY: TokenPricingEntry = {
   inputHitPrice: 0.07,
   outputPrice: 0.42,
   peakEnabled: false,
-  peakStart: '09:00',
-  peakEnd: '18:00',
+  peakWindows: [{ start: '09:00', end: '18:00' }],
   peakTimeZone: 'local',
   peakInputMissPrice: 0,
   peakInputHitPrice: 0,
@@ -91,19 +90,31 @@ describe('PricingSection', () => {
     expect(await screen.findByText('已保存')).toBeTruthy()
   })
 
-  it('reveals and fills the peak rate set when peak pricing is enabled', async () => {
+  it('reveals the peak editor with one window and manages window rows', async () => {
     const saveEntries = echoSave()
     render(<PricingSection {...props({ saveEntries })} />)
     fireEvent.click(await screen.findByText('编辑'))
     fireEvent.click(screen.getByText('启用高峰期定价（按当前时间选择高峰/非高峰价格）'))
     expect(screen.getByLabelText('高峰输入（未命中）$/M')).toBeTruthy()
-    expect(screen.getByLabelText('高峰开始（HH:MM）')).toBeTruthy()
+    expect(screen.getAllByLabelText('高峰开始（HH:MM）')).toHaveLength(1)
+    // The lone window's remove button is disabled; a second window enables both.
+    const removeButtons = screen.getAllByText('删除时段')
+    expect(removeButtons).toHaveLength(1)
+    expect((removeButtons[0] as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(screen.getByText('添加高峰时段'))
+    expect(screen.getAllByLabelText('高峰开始（HH:MM）')).toHaveLength(2)
+    const starts = screen.getAllByLabelText('高峰开始（HH:MM）')
+    fireEvent.change(starts[1]!, { target: { value: '22:00' } })
+    fireEvent.change(screen.getAllByLabelText('高峰结束（HH:MM）')[1]!, { target: { value: '23:00' } })
+    fireEvent.click(screen.getAllByText('删除时段')[0]!)
+    expect(screen.getAllByLabelText('高峰开始（HH:MM）')).toHaveLength(1)
     fireEvent.change(screen.getByLabelText('高峰输入（未命中）$/M'), { target: { value: '0.14' } })
     fireEvent.click(screen.getByText('保存配置'))
     await waitFor(() => {
       const submitted = saveEntries.mock.calls[0]![0] as TokenPricingEntry[]
       expect(submitted[0]?.peakInputMissPrice).toBe(0.14)
       expect(submitted[0]?.peakEnabled).toBe(true)
+      expect(submitted[0]?.peakWindows).toEqual([{ start: '22:00', end: '23:00' }])
     })
   })
 

@@ -1,14 +1,18 @@
 /**
- * Pure pricing helpers: window math, route matching, cost computation, and
- * formatting. No render machinery — these are the functions the dock and the
- * settings page share.
+ * Pure pricing helpers: window math, route matching, cost computation,
+ * per-turn/per-model aggregation, the legacy-entry migration, and
+ * formatting. No render machinery — these are the functions the dock, the
+ * floating window, and the settings page share.
  */
 
 import { describe, expect, it } from 'vitest'
 import {
-  billedTokens, computeCost, formatTokens, formatUsd, inWindow, minutesOfDay, resolveEntry,
+  aggregateByModel, aggregateByTurn, billedTokens, computeCost, formatTokens, formatUsd,
+  inAnyPeakWindow, inWindow, minutesOfDay, priceStep, resolveEntry, totalsOf,
 } from '../src/client/pricing.ts'
+import { TokenPricingEntrySchema } from '../src/settings.ts'
 import type { TokenPricingEntry } from '../src/settings.ts'
+import type { TokenPricingProjection, TokenPricingStep } from '../src/types.ts'
 import type { TokenUsageProjection } from '@deepseek-ai/dsh-token-meter/client'
 
 const ENTRY: TokenPricingEntry = {
@@ -18,8 +22,7 @@ const ENTRY: TokenPricingEntry = {
   inputHitPrice: 0.07,
   outputPrice: 0.42,
   peakEnabled: false,
-  peakStart: '09:00',
-  peakEnd: '18:00',
+  peakWindows: [{ start: '09:00', end: '18:00' }],
   peakTimeZone: 'local',
   peakInputMissPrice: 0.14,
   peakInputHitPrice: 0.035,
@@ -31,6 +34,24 @@ const USAGE: TokenUsageProjection = {
   cacheReadTokens: 50_000,
   cacheWriteTokens: 10_000,
   outputTokens: 2_000,
+}
+
+function step(overrides: Partial<TokenPricingStep> = {}): TokenPricingStep {
+  return {
+    step: 1,
+    provider: 'deepseek-official',
+    model: 'deepseek-chat',
+    time: new Date(2025, 0, 1, 10, 0).getTime(),
+    inputTokens: 100_000,
+    cacheReadTokens: 50_000,
+    cacheWriteTokens: 10_000,
+    outputTokens: 2_000,
+    ...overrides,
+  }
+}
+
+function projection(turns: TokenPricingProjection['turns']): TokenPricingProjection {
+  return { turns }
 }
 
 describe('minutesOfDay', () => {
@@ -60,6 +81,34 @@ describe('inWindow', () => {
   it('treats a zero-length window as the whole day', () => {
     expect(inWindow('00:00', '00:00', 0)).toBe(true)
     expect(inWindow('00:00', '00:00', 12 * 60)).toBe(true)
+  })
+})
+
+describe('inAnyPeakWindow', () => {
+  const windows = [
+    { start: '08:00', end: '10:00' },
+    { start: '22:00', end: '23:00' },
+  ]
+
+  it('hits while any window contains the instant', () => {
+    expect(inAnyPeakWindow(windows, 'local', new Date(2025, 0, 1, 8, 0))).toBe(true)
+    expect(inAnyPeakWindow(windows, 'local', new Date(2025, 0, 1, 9, 59))).toBe(true)
+    expect(inAnyPeakWindow(windows, 'local', new Date(2025, 0, 1, 22, 30))).toBe(true)
+  })
+
+  it('misses outside every window', () => {
+    expect(inAnyPeakWindow(windows, 'local', new Date(2025, 0, 1, 7, 59))).toBe(false)
+    expect(inAnyPeakWindow(windows, 'local', new Date(2025, 0, 1, 12, 0))).toBe(false)
+    expect(inAnyPeakWindow(windows, 'local', new Date(2025, 0, 1, 23, 0))).toBe(false)
+  })
+
+  it('misses for an empty window list', () => {
+    expect(inAnyPeakWindow([], 'local', new Date(2025, 0, 1, 12, 0))).toBe(false)
+  })
+
+  it('honours the entry timezone basis', () => {
+    const utc = new Date('2025-01-01T09:00:00Z')
+    expect(inAnyPeakWindow(windows, 'utc', utc)).toBe(true)
   })
 })
 
@@ -98,13 +147,22 @@ describe('computeCost', () => {
     expect(cost.hitTokens).toBe(50_000)
   })
 
-  it('selects peak rates inside the window and off-peak outside', () => {
-    const peak = { ...ENTRY, peakEnabled: true }
-    const inside = computeCost(peak, USAGE, new Date(2025, 0, 1, 10, 0))
+  it('selects peak rates inside any window and off-peak outside all of them', () => {
+    const peak: TokenPricingEntry = {
+      ...ENTRY,
+      peakEnabled: true,
+      peakWindows: [
+        { start: '08:00', end: '10:00' },
+        { start: '22:00', end: '23:00' },
+      ],
+    }
+    const inside = computeCost(peak, USAGE, new Date(2025, 0, 1, 9, 0))
     expect(inside.tier).toBe('peak')
     expect(inside.miss).toBe(0.14)
     expect(inside.hit).toBe(0.035)
     expect(inside.out).toBe(0.21)
+    const second = computeCost(peak, USAGE, new Date(2025, 0, 1, 22, 30))
+    expect(second.tier).toBe('peak')
     const outside = computeCost(peak, USAGE, new Date(2025, 0, 1, 20, 0))
     expect(outside.tier).toBe('offpeak')
     expect(outside.miss).toBe(0.28)
@@ -114,6 +172,130 @@ describe('computeCost', () => {
     const peak = { ...ENTRY, peakEnabled: true, peakTimeZone: 'utc' as const }
     const cost = computeCost(peak, USAGE, new Date('2025-01-01T10:00:00Z'))
     expect(cost.tier).toBe('peak')
+  })
+})
+
+describe('priceStep', () => {
+  it('prices a matched step at its own time', () => {
+    const priced = priceStep([ENTRY], step({ time: new Date(2025, 0, 1, 22, 0).getTime() }))
+    expect(priced.entry).toBe(ENTRY)
+    expect(priced.cost?.total).toBeCloseTo(0.03514, 10)
+  })
+
+  it('returns no entry or cost for an unconfigured route', () => {
+    const priced = priceStep([ENTRY], step({ provider: 'other', model: 'deepseek-chat' }))
+    expect(priced.entry).toBeUndefined()
+    expect(priced.cost).toBeUndefined()
+  })
+})
+
+describe('aggregateByModel', () => {
+  const entries = [ENTRY]
+
+  it('folds steps into per-route rows ordered by first appearance', () => {
+    const rows = aggregateByModel(projection([
+      { turn: 1, startTime: 100, steps: [step()] },
+      { turn: 2, startTime: 200, steps: [
+        step({ step: 1, model: 'other-model', outputTokens: 1_000, cacheReadTokens: 0, cacheWriteTokens: 0, inputTokens: 0 }),
+        step({ step: 2 }),
+      ] },
+    ]), entries)
+    expect(rows).toHaveLength(2)
+    expect(rows[0]?.model).toBe('deepseek-chat')
+    expect(rows[1]?.model).toBe('other-model')
+    expect(rows[0]?.steps).toBe(2)
+    expect(rows[0]?.inputTokens).toBe(160_000 * 2)
+    expect(rows[0]?.outputTokens).toBe(4_000)
+    expect(rows[0]?.total).toBeCloseTo(0.03514 * 2, 10)
+    expect(rows[0]?.entry).toBe(ENTRY)
+  })
+
+  it('keeps token counts but no costs for unconfigured routes', () => {
+    const rows = aggregateByModel(projection([
+      { turn: 1, startTime: 100, steps: [step({ provider: 'other' })] },
+    ]), entries)
+    expect(rows[0]?.entry).toBeUndefined()
+    expect(rows[0]?.inputTokens).toBe(160_000)
+    expect(rows[0]?.total).toBe(0)
+  })
+})
+
+describe('aggregateByTurn', () => {
+  const entries = [ENTRY]
+
+  it('groups usage-bearing turns in turn order and omits empty ones', () => {
+    const turns = aggregateByTurn(projection([
+      { turn: 1, startTime: 100, steps: [] },
+      { turn: 2, startTime: 200, steps: [step({ step: 1 }), step({ step: 2, model: 'other-model' })] },
+    ]), entries)
+    expect(turns).toHaveLength(1)
+    expect(turns[0]?.turn).toBe(2)
+    expect(turns[0]?.startTime).toBe(200)
+    expect(turns[0]?.models.map(model => model.model)).toEqual(['deepseek-chat', 'other-model'])
+    expect(turns[0]?.models[1]?.entry).toBeUndefined()
+  })
+
+  it('splits a mid-turn model switch into one row per route', () => {
+    const turns = aggregateByTurn(projection([
+      { turn: 1, startTime: 100, steps: [
+        step({ step: 1 }),
+        step({ step: 2, provider: 'b', model: 'model-b' }),
+        step({ step: 3 }),
+      ] },
+    ]), entries)
+    expect(turns[0]?.models.map(model => `${model.provider}/${model.model}`))
+      .toEqual(['deepseek-official/deepseek-chat', 'b/model-b'])
+    // The two deepseek-chat steps fold into the route's first row.
+    expect(turns[0]?.models[0]?.steps).toBe(2)
+    expect(turns[0]?.models[0]?.outputTokens).toBe(4_000)
+  })
+})
+
+describe('totalsOf', () => {
+  it('sums priced rows and ignores unpriced ones', () => {
+    const rows = aggregateByModel(projection([
+      { turn: 1, startTime: 100, steps: [step(), step({ provider: 'other' })] },
+    ]), [ENTRY])
+    const totals = totalsOf(rows)
+    expect(totals.inputCost).toBeCloseTo(0.0343, 10)
+    expect(totals.outputCost).toBeCloseTo(0.00084, 10)
+    expect(totals.total).toBeCloseTo(0.03514, 10)
+  })
+})
+
+describe('TokenPricingEntrySchema migration', () => {
+  it('folds a legacy single-window entry into peakWindows', () => {
+    const migrated = TokenPricingEntrySchema({
+      provider: 'p',
+      model: 'm',
+      inputMissPrice: 0.28,
+      inputHitPrice: 0.07,
+      outputPrice: 0.42,
+      peakEnabled: true,
+      peakStart: '08:00',
+      peakEnd: '20:00',
+      peakTimeZone: 'utc',
+      peakInputMissPrice: 0.14,
+      peakInputHitPrice: 0.035,
+      peakOutputPrice: 0.21,
+    } as unknown as TokenPricingEntry)
+    expect(migrated.peakWindows).toEqual([{ start: '08:00', end: '20:00' }])
+    expect(migrated.peakTimeZone).toBe('utc')
+    expect(migrated.peakEnabled).toBe(true)
+    expect('peakStart' in migrated).toBe(false)
+  })
+
+  it('passes an already-migrated entry through unchanged', () => {
+    const migrated = TokenPricingEntrySchema(ENTRY)
+    expect(migrated).toEqual(ENTRY)
+  })
+
+  it('seeds the default window when no window shape is present', () => {
+    const migrated = TokenPricingEntrySchema({
+      provider: 'p',
+      model: 'm',
+    } as unknown as TokenPricingEntry)
+    expect(migrated.peakWindows).toEqual([{ start: '09:00', end: '18:00' }])
   })
 })
 

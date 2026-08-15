@@ -209,6 +209,19 @@
   gap: 10px;
 }
 
+/* One peak interval: the two time fields share the row, the remove button
+   sits at the field baseline. */
+.windowRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.windowRow .field {
+  flex: 1;
+  min-width: 0;
+}
+
 .check {
   display: flex;
   align-items: center;
@@ -275,7 +288,8 @@
 }
 
 .primaryButton:disabled,
-.secondaryButton:disabled {
+.secondaryButton:disabled,
+.dangerButton:disabled {
   opacity: 0.4;
   cursor: default;
 }

@@ -12,7 +12,8 @@ import type { ChangeEvent, ReactNode } from 'react'
 import type { IApiClient } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-runtime/client'
 import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
-import type { TokenPricingEntry, TokenPricingSettings } from '../settings.ts'
+import type { PeakWindow, TokenPricingEntry, TokenPricingSettings } from '../settings.ts'
+import { DEFAULT_PEAK_WINDOW } from '../settings.ts'
 import css from './PricingSection.module.css'
 
 /** Draft entry for a route with no stored configuration yet. */
@@ -24,8 +25,7 @@ function defaultEntry(route: { provider: string; model: string }): TokenPricingE
     inputHitPrice: 0,
     outputPrice: 0,
     peakEnabled: false,
-    peakStart: '09:00',
-    peakEnd: '18:00',
+    peakWindows: [{ ...DEFAULT_PEAK_WINDOW }],
     peakTimeZone: 'local',
     peakInputMissPrice: 0,
     peakInputHitPrice: 0,
@@ -179,6 +179,17 @@ export function PricingSection({ usePricing, api, saveEntries }: PricingSectionP
     })
   }
 
+  /** Apply one transformation to a draft's peak-window list. */
+  const updateWindows = (key: string, update: (windows: PeakWindow[]) => PeakWindow[]): void => {
+    setDrafts((map) => {
+      if (map === null) return map
+      const next = new Map(map)
+      const current = next.get(key) ?? defaultEntry(keyParts(key))
+      next.set(key, { ...current, peakWindows: update(current.peakWindows) })
+      return next
+    })
+  }
+
   const removeDraft = (key: string): void => {
     setDrafts((map) => {
       if (map === null) return map
@@ -280,15 +291,54 @@ export function PricingSection({ usePricing, api, saveEntries }: PricingSectionP
         </label>
         {entry.peakEnabled && (
           <div className={css.peakBlock}>
+            {entry.peakWindows.map((window, index) => (
+              <div key={index} className={css.windowRow}>
+                <label className={css.field}>
+                  <span>高峰开始（HH:MM）</span>
+                  <input
+                    type="time"
+                    value={window.start}
+                    onChange={(event) => {
+                      updateWindows(key, (windows) => windows.map((item, at) =>
+                        at === index ? { ...item, start: event.target.value } : item))
+                    }}
+                  />
+                </label>
+                <label className={css.field}>
+                  <span>高峰结束（HH:MM）</span>
+                  <input
+                    type="time"
+                    value={window.end}
+                    onChange={(event) => {
+                      updateWindows(key, (windows) => windows.map((item, at) =>
+                        at === index ? { ...item, end: event.target.value } : item))
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className={css.dangerButton}
+                  disabled={entry.peakWindows.length <= 1}
+                  onClick={() => {
+                    updateWindows(key, (windows) => windows.filter((_, at) => at !== index))
+                  }}
+                >
+                  删除时段
+                </button>
+              </div>
+            ))}
+            <div>
+              <button
+                type="button"
+                className={css.secondaryButton}
+                onClick={() => {
+                  updateWindows(key, (windows) => [...windows, { ...DEFAULT_PEAK_WINDOW }])
+                }}
+              >
+                添加高峰时段
+              </button>
+            </div>
             <div className={css.editorGrid}>
-              <label className={css.field}>
-                <span>高峰开始（HH:MM）</span>
-                <input type="time" value={entry.peakStart} onChange={textField('peakStart')} />
-              </label>
-              <label className={css.field}>
-                <span>高峰结束（HH:MM）</span>
-                <input type="time" value={entry.peakEnd} onChange={textField('peakEnd')} />
-              </label>
               <label className={css.field}>
                 <span>时区</span>
                 <select value={entry.peakTimeZone} onChange={textField('peakTimeZone')}>
@@ -322,7 +372,7 @@ export function PricingSection({ usePricing, api, saveEntries }: PricingSectionP
       <h2 className={css.title}>模型定价</h2>
       <p className={css.intro}>
         为各提供方的各模型配置每百万 token 价格（美元）。输入价格分为缓存未命中与缓存命中；缓存写入按未命中价计费。
-        启用高峰定价后，会话底部数据栏按当前时间在高峰/非高峰价格间切换；时段支持跨午夜（如 22:00–08:00）。
+        启用高峰定价后，可添加多个高峰时段（默认为一个），当前时间落入任一时段即按高峰价格计费；时段支持跨午夜（如 22:00–08:00）。
         未配置价格的模型不显示费用。
       </p>
       {status === 'saved' && <p className={css.saved} role="status">已保存</p>}

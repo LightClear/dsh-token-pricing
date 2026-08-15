@@ -15,10 +15,16 @@ export const name = 'client-token-pricing-invariant'
 export const inject = ['invariants']
 
 /**
- * No runtime invariant: one settings-namespace registration and two slot
- * registrations whose disposal is proven by the apply spec — the plugin owns
- * no store of its own (the pricing section lives in the settings scope),
- * emits no cordis events, and holds no cross-plugin mutable state.
+ * No runtime invariant: the package owns a durable settings section (whose
+ * wire values the settings provider schema-validates) and a single pure
+ * projection fold whose wire payload the projection registry validates at
+ * every snapshot and change-feed emission. The event relations the fold
+ * relies on (one assembled `assistant/message` per step, `request/header`
+ * logged before its dispatch, monotonic host-assigned turn numbers) are
+ * owned and runtime-checked by dsh-agent-loop and the session surface, not
+ * here. Registration disposal is proven by the apply specs, and the plugin
+ * holds no cross-plugin mutable state of its own (drafts live in the
+ * settings scope, fold state in the projection registry's cells).
  */
 const install: InvariantInstaller = () => {}
 

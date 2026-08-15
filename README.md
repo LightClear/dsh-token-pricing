@@ -1,24 +1,70 @@
 # dsh-client-token-pricing
 
-English | [中文](README.zh.md)
+中文 | [English](README.en.md)
 
-Per-provider/model token pricing for the web surface: a durable `token-pricing` settings section (USD per 1M tokens for uncached input, cache-hit input, and output, plus an optional peak-hour window with its own rate set) and a conversation cost readout in the `conversation.composer.dock` band beside the shipped stats line. The node half only registers the settings namespace; everything else rides existing host services.
+Web 界面的按提供方/模型 token 定价：按提供方/模型配置美元价格（未命中输入、缓存命中输入、输出，以及可在任意多个高峰时段内生效的高峰价格档），并在三个表面查看会话费用——底部数据栏，以及一个可折叠可拖拽的浮窗（「按轮计价」与「按模型计价」两种视图）。按轮用量由 `tokenPricing` 投影从会话日志派生，随会话持久化、随归档一并保留。node 半身注册设置命名空间与投影单元，其余全部复用现有 Host 服务。
 
-The readout shows `模型 · 输入 $X · 输出 $Y · 总计 $Z` for the session's cumulative `tokenUsage` projection under the matched entry for the session's current provider/model route (`session.models`). A route with no configured entry — or no usage yet — renders nothing. When peak pricing is enabled, the current tier (`高峰价` / `非高峰价`) follows the current time in the configured timezone and refreshes once a minute; the hover tooltip breaks the totals down by uncached/cache-hit tokens and rates.
+## 功能亮点
 
-The settings page ("模型定价") follows the Models settings page layout: one card per provider route from the `llm.models` catalog, each listing its models with a configured/unconfigured dot and an editor for the three base rates plus the peak-hour rate set. Stored entries whose provider is absent from the catalog still render (tagged 未发现于目录) so they stay editable. 保存配置 writes the whole entries list through the settings scope (`settingsScope`), whose recovery read re-syncs the form with host truth; a rejected write surfaces as a save failure.
+### 配置模型价格与高峰时段规则
 
-The `/client` exports are the plugin body (`apply`/`inject`), the dock and section components, and their injected face types. Pure cost math lives in `src/client/pricing.ts`.
+![设置页：展示具体模型的设置页面，读取已设置的模型配置，并配置模型价格与高峰期计价规则](docs/settings-page.png)
 
-## Model Experience
+设置 → 模型定价 把模型目录按提供方分组为卡片，每个模型带已配置/未配置圆点。展开某个模型打开编辑器，自动载入已存配置，可编辑三档基础费率——输入未命中、输入命中、输出（美元/每百万 token）——以及高峰期计价规则：启用高峰定价后，可按需增删任意多个高峰时段（`添加高峰时段` / `删除时段`），全部时段共享一套高峰费率。默认只有一段，时段支持跨午夜（22:00–08:00），当前时间落入任一时段即按高峰价计费。
 
-None: the plugin adds no prompt content, registers no model-visible tools, and reads no settings into the request path. The readout is a presentation of existing durable data (the `tokenUsage` projection and the `session.models` route), so it never changes what a model sees.
+### 会话底部数据栏的实时费用
 
-#### KV Cache effect
+![会话底部数据栏：展示对话框底部数据区域的计价数据](docs/bottom-data-view.png)
 
-None. The plugin only reads the `tokenUsage` projection after requests commit; it does not influence request composition, cache reuse, or compaction.
+对话框底部数据栏在出厂统计行旁显示会话的 `输入 $X · 输出 $Y · 总计 $Z`。每一步按自身时间、在其派发路由下计价，读数对每个已计价步骤求和，因此与浮窗总计永远一致；未配置计价路由的用量不计入该数字。
 
-## Known Limitations and Deferred Work
+### 可折叠、可拖拽的费用浮窗
 
-- **Whole-session totals at current rates** — the readout prices the session's cumulative token usage with the currently matched entry and the current time. Usage generated under an earlier model or an earlier rate set is not re-billed per request, so the figure is an estimate under today's rates, not a per-request ledger.
-- **Peak tier is display-time only** — the tier is chosen at render time; the accumulated totals are not re-split retroactively when the time crosses a peak boundary.
+![费用浮窗折叠态：右下角小球显示会话总费用](docs/floating-window-folded.png)
+
+折叠态是小球形状，显示当前会话的累计费用；点击小球展开面板。
+
+![费用浮窗展开态：完整窗口，含标题栏、视图切换与底部总计](docs/floating-window-expanded.png)
+
+展开态面板包含两个视图切换页签与底部总计栏。标题栏（顶部）与总计栏（底部）都是拖拽区域。
+
+### 按轮计价与按模型计价
+
+悬浮窗提供两种计价方式：按对话轮数计价与按模型计价。
+
+![费用浮窗的按轮计价页面](docs/floating-window-turn.png)
+
+「按轮计价」按对话轮次列出每轮（轮次号与开始时间）使用的路由、token 数与费用；一轮中途切换模型时按路由拆分为多行。
+
+![费用浮窗的按模型计价页面](docs/floating-window-model.png)
+
+「按模型计价」按会话中使用过的所有模型聚合 token 数与费用，按首次使用顺序排列。两种视图中，未配置计价规则的模型仍显示 token 数并提示 `未设置计价`。
+
+## 数据来源
+
+按轮用量不是单独存储的：`tokenPricing` 投影将会话的持久事件日志折叠为逐步用量事实——每条携带服务商上报 `usage` 的 `assistant/message`，盖上其派发路由（最近一条 `request/header`）与该步自身的时间戳。由于折叠重放日志，数据随会话持久化、重启后还原，并随归档的会话一并保留（归档只隐藏列表行，从不改写日志）。投影只携带用量事实——费率住在设置作用域里——因此浏览器在渲染时逐步计价，事后修改价格条目会按新价重算历史。高峰/非高峰按每步自身时间判定：某步的时间落入其条目任一 `peakWindows` 即按高峰价计费。
+
+`/client` 导出为插件主体（`apply`/`inject`）、dock、浮窗与设置页组件及其注入面类型。纯费用计算位于 `src/client/pricing.ts`，投影折叠位于 `src/projection.ts`。
+
+## 模型体验
+
+### 基于已记录用量的费用读数
+
+#### 模型看到的内容
+
+本插件不向任何模型请求添加任何内容：不注册工具、不注册提示段，也没有任何设置值进入请求路径。数据栏、浮窗与设置页只呈现线上已有的持久数据——`tokenPricing` 投影值与 `token-pricing` 设置段。
+
+#### Token 影响
+
+零：本包不添加、移除或改动任何提示内容、工具 schema 或消息。
+
+#### KV Cache 影响
+
+无：请求组成、缓存复用与压缩均不受影响；`tokenPricing` 折叠只在请求提交后运行。
+
+## 已知限制与待办
+
+- **压缩摘要不计费** — 压缩步骤自身的模型调用不追加 usage 事件，其费用不出现在任何数字中（与 `tokenUsage` 计量口径一致）。
+- **无服务商用量的步骤不计费** — 未上报计费的适配器调用、或消息组装前中止的步骤不产生记录行。
+- **浮窗位置每次加载重置** — 拖拽位置保存在组件状态里，刷新页面后回到默认位置。
+- **数据栏数字只覆盖已配置路由** — 未配置计价路由的用量不贡献数据栏总计；这部分用量在浮窗的按模型视图中显示为未计价。
