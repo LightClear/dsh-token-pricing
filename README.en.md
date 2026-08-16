@@ -8,29 +8,38 @@ Per-provider/model token pricing for the web surface: configure USD rates per pr
 
 ## Installation
 
-Prerequisites: Node ≥ 22, pnpm, and a working dsh installation.
+Prerequisites: Node ≥ 22, pnpm, and a working dsh installation (official CLI `npm i -g @deepseek-ai/dsh`, or source launch `pnpm dsh`).
 
 ```sh
-# Install into the web profile (initializes the profile, installs
-# dependencies, and registers the bundle layer)
+# 1. Install into the web profile (initializes the profile, installs
+#    dependencies, and registers the bundle layer)
 dsh plugin --profile web add dsh-token-pricing
 
-# Start
+# 2. Start (restart if already running)
 dsh web
 ```
 
-`dsh plugin add` uses the official plugin mechanism: it installs this package into `$DSH_HOME/profiles/web/`, joins the profile's patch-layer stack through the `dsh.bundle` declaration, and the layer's one row mounts both the node half and the browser half. The package declares only two runtime dependencies of its own (`schemastery`, `zod`); every other `@deepseek-ai/dsh-*` import resolves from the dsh installation itself (the mechanism's two-anchor resolution), so installing never pulls internal packages. Update and uninstall:
+`dsh plugin add` uses the official plugin mechanism: it installs this package into `$DSH_HOME/profiles/web/`, joins the profile's patch-layer stack through the `dsh.bundle` declaration, and the layer's one row mounts both the node half (Host) and the browser half (the `dsh.client` scan). The package declares only two runtime dependencies of its own (`schemastery`, `zod`); every other `@deepseek-ai/dsh-*` import resolves from the dsh installation itself (the mechanism's two-anchor resolution), so installing never pulls internal packages.
+
+Verify the install: open 设置 → 模型定价 and configure rates; the cost ball appears in the bottom-right corner and the conversation data bar shows the cost readout.
+
+Update and uninstall:
 
 ```sh
 dsh plugin --profile web update dsh-token-pricing
 dsh plugin --profile web remove dsh-token-pricing
 ```
 
-Until an npm release exists, the same mechanism accepts a git source (the repository ships its built `lib/`):
+Outside npm, the same mechanism accepts a git source (install a branch or commit; the repository ships its built `lib/`):
 
 ```sh
 dsh plugin --profile web add github:LightClear/dsh-token-pricing
 ```
+
+Notes:
+
+- If the profile already carries a plugin row with id `token-pricing`, the install conflicts with it — remove one of them.
+- For compiling the plugin into the harness repository itself (development/integration), see [INTEGRATION.md](INTEGRATION.md).
 
 ## Features
 
@@ -96,3 +105,8 @@ None: request composition, cache reuse, and compaction are untouched; the `token
 - **Steps without provider usage are unbilled** — an adapter that reports no accounting, or a step aborted before its message assembled, contributes no row.
 - **The floating window's position is per-load** — its drag position lives in component state and resets on a page reload.
 - **The dock figure covers configured routes only** — usage whose route has no pricing entry contributes nothing to the dock total; the floating window's per-model view is where that usage is shown as unpriced.
+
+## Future Work
+
+- **Workspace/project cost statistics panel** — aggregate cost statistics across every session of a workspace or project (currently only per-session), so a whole project's accumulated cost is visible in one place.
+- **Billing currency selection with automatic exchange-rate handling** — let users pick the billing currency (USD by default) and convert displayed costs through the latest exchange rates automatically, without editing the rate entries by hand.

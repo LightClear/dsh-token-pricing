@@ -8,28 +8,37 @@ Web 界面的按提供方/模型 token 定价：按提供方/模型配置美元�
 
 ## 安装
 
-前置：Node ≥ 22、pnpm、可用的 dsh 安装。
+前置：Node ≥ 22、pnpm、可用的 dsh 安装（官方 CLI `npm i -g @deepseek-ai/dsh`，或源码启动 `pnpm dsh`）。
 
 ```sh
-# 安装到 web profile（自动初始化 profile、安装依赖、注册补丁层）
+# 1. 安装到 web profile（自动初始化 profile、安装依赖、注册补丁层）
 dsh plugin --profile web add dsh-token-pricing
 
-# 启动
+# 2. 启动（已在运行则重启后生效）
 dsh web
 ```
 
-`dsh plugin add` 走官方插件机制：把本包装进 `$DSH_HOME/profiles/web/` 的依赖 → 依据 `dsh.bundle` 声明加入 profile 补丁层 → 补丁层的一行 row 同时挂载 node 半身与浏览器半身。本包只声明两个自用运行时依赖（`schemastery`、`zod`）；其余 `@deepseek-ai/dsh-*` 由 dsh 安装本身提供（官方机制的双锚点解析），因此安装不会拉取任何内部包。更新与卸载：
+`dsh plugin add` 走官方插件机制：把本包装进 `$DSH_HOME/profiles/web/` 的依赖 → 依据 `dsh.bundle` 声明加入 profile 补丁层 → 补丁层的一行 row 同时挂载 node 半身（Host）与浏览器半身（`dsh.client` 扫描）。本包只声明两个自用运行时依赖（`schemastery`、`zod`）；其余 `@deepseek-ai/dsh-*` 由 dsh 安装本身提供（官方机制的双锚点解析），因此安装不会拉取任何内部包。
+
+验证安装：启动后打开 设置 → 模型定价 配置价格；右下角出现费用小球，对话底部数据栏显示费用读数。
+
+更新与卸载：
 
 ```sh
 dsh plugin --profile web update dsh-token-pricing
 dsh plugin --profile web remove dsh-token-pricing
 ```
 
-未发布到 npm 时可用 git 源安装（仓库内已提交构建好的 `lib/`）：
+npm 之外，也可用 git 源安装（装某个分支/提交；仓库内已提交构建好的 `lib/`）：
 
 ```sh
 dsh plugin --profile web add github:LightClear/dsh-token-pricing
 ```
+
+注意事项：
+
+- 若 profile 中已存在 id 为 `token-pricing` 的插件行，安装后会产生冲突——移除其一即可。
+- 若需要把插件直接编译进 harness 主仓库（开发/集成），见 [INTEGRATION.md](INTEGRATION.md)。
 
 ## 功能亮点
 
@@ -95,3 +104,9 @@ dsh plugin --profile web add github:LightClear/dsh-token-pricing
 - **无服务商用量的步骤不计费** — 未上报计费的适配器调用、或消息组装前中止的步骤不产生记录行。
 - **浮窗位置每次加载重置** — 拖拽位置保存在组件状态里，刷新页面后回到默认位置。
 - **数据栏数字只覆盖已配置路由** — 未配置计价路由的用量不贡献数据栏总计；这部分用量在浮窗的按模型视图中显示为未计价。
+
+## 未来优化
+
+- **工作区项目对话费用统计面板** — 按工作区/项目聚合其下所有会话的费用统计（当前仅支持单个会话的统计），方便查看整个项目的累计成本。
+- **计价货币选择与自动汇率处理** — 支持选择计价货币（默认美元），按最新汇率自动换算显示费用，无需手动改价格条目。
+

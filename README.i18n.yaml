@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   git hash-object standalone-export/token-pricing-plugin/README.md standalone-export/token-pricing-plugin/README.en.md
-README.md: 9587e411db703c5f91e7a00dca803df567b9aff7
-README.en.md: 872b4bcb3372d52d7a3214deae565b57e35812fb
+README.md: db0f54125c90e3a5c508c8739b4cdca5168651d7
+README.en.md: be9fdddd5397c11f8dd18e6cd810ece6624656ce
