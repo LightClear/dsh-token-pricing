@@ -1,8 +1,35 @@
-# dsh-client-token-pricing
+# dsh-token-pricing
 
 中文 | [English](README.en.md)
 
+> `dsh-token-pricing` 是一款**第三方（非官方）插件**，由社区维护，与 deepseek-ai 官方发布无关。
+
 Web 界面的按提供方/模型 token 定价：按提供方/模型配置美元价格（未命中输入、缓存命中输入、输出，以及可在任意多个高峰时段内生效的高峰价格档），并在三个表面查看会话费用——底部数据栏，以及一个可折叠可拖拽的浮窗（「按轮计价」与「按模型计价」两种视图）。按轮用量由 `tokenPricing` 投影从会话日志派生，随会话持久化、随归档一并保留。node 半身注册设置命名空间与投影单元，其余全部复用现有 Host 服务。
+
+## 安装
+
+前置：Node ≥ 22、pnpm、可用的 dsh 安装。
+
+```sh
+# 安装到 web profile（自动初始化 profile、安装依赖、注册补丁层）
+dsh plugin --profile web add dsh-token-pricing
+
+# 启动
+dsh web
+```
+
+`dsh plugin add` 走官方插件机制：把本包装进 `$DSH_HOME/profiles/web/` 的依赖 → 依据 `dsh.bundle` 声明加入 profile 补丁层 → 补丁层的一行 row 同时挂载 node 半身与浏览器半身。更新与卸载：
+
+```sh
+dsh plugin --profile web update dsh-token-pricing
+dsh plugin --profile web remove dsh-token-pricing
+```
+
+未发布到 npm 时可用 git 源安装（仓库内已提交构建好的 `lib/`）：
+
+```sh
+dsh plugin --profile web add github:LightClear/dsh-token-pricing
+```
 
 ## 功能亮点
 

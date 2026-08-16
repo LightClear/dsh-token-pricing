@@ -1,8 +1,36 @@
-# dsh-client-token-pricing
+# dsh-token-pricing
 
 [中文](README.md) | English
 
+> `dsh-token-pricing` is a **third-party (unofficial) plugin**, community-maintained and unrelated to official deepseek-ai releases.
+
 Per-provider/model token pricing for the web surface: configure USD rates per provider/model (uncached input, cache-hit input, output, plus an optional peak rate set over any number of peak windows) and watch the conversation's cost across three surfaces — the bottom data bar, and a collapsible, draggable floating window with per-turn ("按轮计价") and per-model ("按模型计价") views. Per-turn usage is derived from the session log by the `tokenPricing` projection, so it persists with the session and travels with an archived one. The node half registers the settings namespace and the projection; everything else rides existing host services.
+
+## Installation
+
+Prerequisites: Node ≥ 22, pnpm, and a working dsh installation.
+
+```sh
+# Install into the web profile (initializes the profile, installs
+# dependencies, and registers the bundle layer)
+dsh plugin --profile web add dsh-token-pricing
+
+# Start
+dsh web
+```
+
+`dsh plugin add` uses the official plugin mechanism: it installs this package into `$DSH_HOME/profiles/web/`, joins the profile's patch-layer stack through the `dsh.bundle` declaration, and the layer's one row mounts both the node half and the browser half. Update and uninstall:
+
+```sh
+dsh plugin --profile web update dsh-token-pricing
+dsh plugin --profile web remove dsh-token-pricing
+```
+
+Until an npm release exists, the same mechanism accepts a git source (the repository ships its built `lib/`):
+
+```sh
+dsh plugin --profile web add github:LightClear/dsh-token-pricing
+```
 
 ## Features
 

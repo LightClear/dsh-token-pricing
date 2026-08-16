@@ -2,9 +2,9 @@
 
 DeepSeek Harness 的**模型定价**插件：按提供方/模型配置每百万 token 价格（输入缓存命中/未命中、输出、任意多个高峰时段），提供会话费用数据栏读数与可折叠可拖拽的费用浮窗（按轮计价 / 按模型计价）。按轮用量由 `tokenPricing` 会话投影从会话日志派生，随会话持久化与归档。
 
-> 本仓库是 harness 的**插件包**（dual-face：node 半身 + `dsh.client` 浏览器半身），依赖 `@deepseek-ai/dsh-*` 公开包（npm 0.0.1-rc.1）。请用下方官方 `dsh plugin` 机制安装。
+> 本仓库是 harness 的**插件包**（dual-face：node 半身 + `dsh.client` 浏览器半身），依赖 `@deepseek-ai/dsh-*` 公开包（npm 0.0.1-rc.1）。`dsh-token-pricing` 是一款**第三方（非官方）插件**，由社区维护，与 deepseek-ai 官方发布无关；安装走的是 harness 官方的 `dsh plugin` 机制。
 
-## 官方安装（推荐）
+## 安装（推荐：官方 dsh plugin 机制）
 
 前置：Node ≥ 22、pnpm、已安装 dsh（`npm i -g` 或源码 `pnpm dsh`）。
 
@@ -41,7 +41,7 @@ dsh plugin --profile web add github:LightClear/dsh-token-pricing
 ## 仓库结构
 
 ```
-cordis.patch.yml           dsh.bundle 补丁层（一行 ui-token-pricing row）
+cordis.patch.yml           dsh.bundle 补丁层（一行 token-pricing row）
 src/settings.ts            持久化设置命名空间 schema（多时段 + 旧单时段迁移 transform）
 src/types.ts               tokenPricing 投影视图类型 + SessionProjectionMap 合并
 src/projection.ts          Host 投影单元：会话日志折叠为逐步用量事实
