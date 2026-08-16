@@ -18,7 +18,7 @@ dsh plugin --profile web add dsh-token-pricing
 dsh web
 ```
 
-`dsh plugin add` 走官方插件机制：把本包装进 `$DSH_HOME/profiles/web/` 的依赖 → 依据 `dsh.bundle` 声明加入 profile 补丁层 → 补丁层的一行 row 同时挂载 node 半身与浏览器半身。更新与卸载：
+`dsh plugin add` 走官方插件机制：把本包装进 `$DSH_HOME/profiles/web/` 的依赖 → 依据 `dsh.bundle` 声明加入 profile 补丁层 → 补丁层的一行 row 同时挂载 node 半身与浏览器半身。本包只声明两个自用运行时依赖（`schemastery`、`zod`）；其余 `@deepseek-ai/dsh-*` 由 dsh 安装本身提供（官方机制的双锚点解析），因此安装不会拉取任何内部包。更新与卸载：
 
 ```sh
 dsh plugin --profile web update dsh-token-pricing

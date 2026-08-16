@@ -2,7 +2,7 @@
 
 DeepSeek Harness 的**模型定价**插件：按提供方/模型配置每百万 token 价格（输入缓存命中/未命中、输出、任意多个高峰时段），提供会话费用数据栏读数与可折叠可拖拽的费用浮窗（按轮计价 / 按模型计价）。按轮用量由 `tokenPricing` 会话投影从会话日志派生，随会话持久化与归档。
 
-> 本仓库是 harness 的**插件包**（dual-face：node 半身 + `dsh.client` 浏览器半身），依赖 `@deepseek-ai/dsh-*` 公开包（npm 0.0.1-rc.1）。`dsh-token-pricing` 是一款**第三方（非官方）插件**，由社区维护，与 deepseek-ai 官方发布无关；安装走的是 harness 官方的 `dsh plugin` 机制。
+> 本仓库是 harness 的**插件包**（dual-face：node 半身 + `dsh.client` 浏览器半身）。`dsh-token-pricing` 是一款**第三方（非官方）插件**，由社区维护，与 deepseek-ai 官方发布无关；安装走的是 harness 官方的 `dsh plugin` 机制。本包只声明两个自用运行时依赖（`schemastery`、`zod`）；其余 `@deepseek-ai/dsh-*` 由 dsh 安装本身提供（双锚点解析），因此安装不会拉取任何未发布的内部包。
 
 ## 安装（推荐：官方 dsh plugin 机制）
 

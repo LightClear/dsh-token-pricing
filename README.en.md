@@ -19,7 +19,7 @@ dsh plugin --profile web add dsh-token-pricing
 dsh web
 ```
 
-`dsh plugin add` uses the official plugin mechanism: it installs this package into `$DSH_HOME/profiles/web/`, joins the profile's patch-layer stack through the `dsh.bundle` declaration, and the layer's one row mounts both the node half and the browser half. Update and uninstall:
+`dsh plugin add` uses the official plugin mechanism: it installs this package into `$DSH_HOME/profiles/web/`, joins the profile's patch-layer stack through the `dsh.bundle` declaration, and the layer's one row mounts both the node half and the browser half. The package declares only two runtime dependencies of its own (`schemastery`, `zod`); every other `@deepseek-ai/dsh-*` import resolves from the dsh installation itself (the mechanism's two-anchor resolution), so installing never pulls internal packages. Update and uninstall:
 
 ```sh
 dsh plugin --profile web update dsh-token-pricing
