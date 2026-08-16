@@ -33,6 +33,8 @@ export function apply(ctx: Context): void {
   ctx.settings.register(
     settingsNamespace(TOKEN_PRICING_NAMESPACE),
     TokenPricingSchema,
+    // The browser pricing page reads and writes this section over the wire.
+    { remote: true },
   )
   ctx.inject(['sessionProjections'], (projectionCtx) => {
     projectionCtx.sessionProjections.register(tokenPricingProjectionDefinition)

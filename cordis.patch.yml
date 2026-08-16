@@ -1,0 +1,10 @@
+# dsh-token-pricing bundle layer: one dual-face row. The node half mounts on
+# the host (the durable `token-pricing` settings section and the `tokenPricing`
+# session projection); the package's `dsh.client` declaration mounts the
+# browser half (dock readout, floating window, settings page) through the
+# modules scan. The row id deliberately differs from the harness-integrated
+# row's `ui-token-pricing`, so a profile that also carries the in-tree
+# integration cannot collide on the id.
+- insert:
+    - id: token-pricing
+      name: dsh-token-pricing
